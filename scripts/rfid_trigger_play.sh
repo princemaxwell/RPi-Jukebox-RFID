@@ -223,14 +223,36 @@ if [ "$CARDID" ]; then
         $DISABLEWIFI)
             $PATHDATA/playout_controls.sh -c=disablewifi
             ;;
+        $CMDPLAYCUSTOMPLS)
+            $PATHDATA/playout_controls.sh -c=playlistaddplay -v="PhonieCustomPLS" -d="PhonieCustomPLS"
+            ;;
         $STARTRECORD600)
             #start recorder for -v seconds
-            $PATHDATA/playout_controls.sh -c=startrecord -v=600			             
+            $PATHDATA/playout_controls.sh -c=recordstart -v=600			             
             ;;
         $STOPRECORD)
-            $PATHDATA/playout_controls.sh -c=stoprecord
+            $PATHDATA/playout_controls.sh -c=recordstop
+            ;;
+        $RECORDSTART600)
+            #start recorder for -v seconds
+            $PATHDATA/playout_controls.sh -c=recordstart -v=600			             
+            ;;
+        $RECORDSTART60)
+            #start recorder for -v seconds
+            $PATHDATA/playout_controls.sh -c=recordstart -v=60			             
+            ;;
+        $RECORDSTART10)
+            #start recorder for -v seconds
+            $PATHDATA/playout_controls.sh -c=recordstart -v=10			             
+            ;;
+        $RECORDSTOP)
+            $PATHDATA/playout_controls.sh -c=recordstop
+            ;;
+        $RECORDPLAYBACKLATEST)
+            $PATHDATA/playout_controls.sh -c=recordplaybacklatest
             ;;
         *)
+
             # We checked if the card was a special command, seems it wasn't.
             # Now we expect it to be a trigger for one or more audio file(s).
             # Let's look at the ID, write a bit of log information and then try to play audio.
@@ -333,7 +355,11 @@ if [ ! -z "$FOLDER" -a ! -z ${FOLDER+x} -a -d "${AUDIOFOLDERSPATH}/${FOLDER}" ];
         # - check the length of the playlist, if =0 then it was cleared before, a state, which should only
         #   be possible after a reboot ($PLLENGTH -gt 0)
         PLLENGTH=$(echo -e "status\nclose" | nc -w 1 localhost 6600 | grep -o -P '(?<=playlistlength: ).*')
-        if [ "$SECONDSWIPE" == "PAUSE" -a $PLLENGTH -gt 0 ]
+        if [ $PLLENGTH -eq 0 ]
+        then
+            # after a reboot we want to play the playlist once no matter what the setting is
+            if [ "$DEBUG" == "true" ]; then echo "Take second wipe as first after fresh boot" >> $PATHDATA/../logs/debug.log; fi
+        elif [ "$SECONDSWIPE" == "PAUSE" -a $PLLENGTH -gt 0 ]
         then
             # The following involves NOT playing the playlist, so we set: 
             PLAYPLAYLIST=no
@@ -358,6 +384,11 @@ if [ ! -z "$FOLDER" -a ! -z ${FOLDER+x} -a -d "${AUDIOFOLDERSPATH}/${FOLDER}" ];
             # => do nothing
             # echo "do nothing" > /dev/null 2>&1
             if [ "$DEBUG" == "true" ]; then echo "Completed: do nothing" >> $PATHDATA/../logs/debug.log; fi
+        elif [ "$SECONDSWIPE" == "SKIPNEXT" ]
+        then
+            # We will not play the playlist but skip to the next track: 
+            PLAYPLAYLIST=skipnext
+            if [ "$DEBUG" == "true" ]; then echo "Completed: skip next track" >> $PATHDATA/../logs/debug.log; fi
         fi
     fi
     # now we check if we are still on for playing what we got passed on:
@@ -393,6 +424,19 @@ if [ ! -z "$FOLDER" -a ! -z ${FOLDER+x} -a -d "${AUDIOFOLDERSPATH}/${FOLDER}" ];
         # the variable passed on to play is NOT the folder name, but the playlist name
         # because (see above) a folder can be played recursively (including subfolders) or flat (only containing files)        
         $PATHDATA/playout_controls.sh -c=playlistaddplay -v="${PLAYLISTNAME}" -d="${FOLDER}"
+    fi
+    if [ "$PLAYPLAYLIST" == "skipnext" ]
+    then
+        if [ "$DEBUG" == "true" ]; then echo "Skip to the next track in the playlist: \$PLAYPLAYLIST == skipnext"   >> $PATHDATA/../logs/debug.log; fi
+        if [ "$DEBUG" == "true" ]; then echo "VAR FOLDER: $FOLDER"   >> $PATHDATA/../logs/debug.log; fi
+        if [ "$DEBUG" == "true" ]; then echo "VAR PLAYLISTPATH: $PLAYLISTPATH"   >> $PATHDATA/../logs/debug.log; fi
+       
+        # load new playlist and play
+        if [ "$DEBUG" == "true" ]; then echo "Command: $PATHDATA/playout_controls.sh -c=playlistaddplay -v=\"${PLAYLISTNAME}\" -d=\"${FOLDER}\"" >> $PATHDATA/../logs/debug.log; fi
+		# play playlist
+        # the variable passed on to play is NOT the folder name, but the playlist name
+        # because (see above) a folder can be played recursively (including subfolders) or flat (only containing files)        
+        $PATHDATA/playout_controls.sh -c=playernext
     fi
     sudo echo ${PLAYLISTNAME} > $PATHDATA/../settings/Latest_Playlist_Played
     sudo chmod 777 $PATHDATA/../settings/Latest_Playlist_Played

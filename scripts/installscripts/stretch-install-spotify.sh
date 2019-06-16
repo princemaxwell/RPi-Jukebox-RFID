@@ -151,7 +151,7 @@ echo "#####################################################
     	    EXISTINGuse=NO
     	    echo "Phoniebox will be a fresh install. The existing version will be dropped."
     	    echo "Hit ENTER to proceed to the next step."
-            #rm -r RPi-Jukebox-RFID
+            sudo rm -rf RPi-Jukebox-RFID
             read INPUT
             ;;
         *)
@@ -456,9 +456,7 @@ sudo iwconfig wlan0 power off
 
 # Install required packages
 sudo apt-get update
-sudo apt-get install apt-transport-https samba samba-common-bin python-dev python-pip gcc linux-headers-4.9 lighttpd php7.0-common php7.0-cgi php7.0 php7.0-fpm at mpd mpc mpg123 git ffmpeg python-mutagen python3-gpiozero
-sudo pip install "evdev == 0.7.0"
-sudo pip install youtube_dl
+sudo apt-get --yes --force-yes install apt-transport-https samba samba-common-bin python-dev python-pip gcc linux-headers-4.9 lighttpd php7.0-common php7.0-cgi php7.0 php7.0-fpm at mpd mpc mpg123 git ffmpeg python-mutagen python3-gpiozero
 
 # Install required spotify packages
 if [ $SPOTinstall == "YES" ]
@@ -466,8 +464,8 @@ then
 	wget -q -O - https://apt.mopidy.com/mopidy.gpg | sudo apt-key add -
 	sudo wget -q -O /etc/apt/sources.list.d/mopidy.list https://apt.mopidy.com/stretch.list
 	sudo apt-get update
-	sudo apt-get install mopidy
-	sudo apt-get install libspotify12 python-cffi python-ply python-pycparser python-spotify
+	sudo apt-get --yes --force-yes install mopidy
+	sudo apt-get --yes --force-yes install libspotify12 python-cffi python-ply python-pycparser python-spotify
 	sudo rm -rf /usr/lib/python2.7/dist-packages/mopidy_spotify*
 	sudo rm -rf /usr/lib/python2.7/dist-packages/Mopidy_Spotify-*
 	cd
@@ -476,6 +474,9 @@ then
 	cd mopidy-spotify
 	sudo python setup.py install
 	cd
+	# should be removed, if Mopidy-Iris can be installed normally
+	# pylast >= 3.0.0 removed the python2 support
+	sudo pip install pylast==2.4.0
 	sudo pip install Mopidy-Iris
 fi
 
@@ -485,6 +486,20 @@ git clone https://github.com/MiczFlor/RPi-Jukebox-RFID.git
 # the following three lines are needed as long as this is not the master branch:
 cd RPi-Jukebox-RFID
 git fetch
+
+# Install more required packages
+sudo pip install -r requirements.txt
+
+# actually, for the time being most of the requirements are run here (again).
+# the requirements.txt version seems to throw errors. Help if you can to fix this:
+
+sudo pip install "evdev == 0.7.0"
+sudo pip install --upgrade youtube_dl
+sudo pip install git+git://github.com/lthiery/SPI-Py.git#egg=spi-py
+sudo pip install pyserial
+sudo pip install spidev
+sudo pip install RPi.GPIO
+sudo pip install pi-rc522
 
 # Switch of WiFi power management
 sudo iwconfig wlan0 power off
@@ -536,10 +551,6 @@ echo "RESTART" > /home/pi/RPi-Jukebox-RFID/settings/Second_Swipe
 echo "/home/pi/RPi-Jukebox-RFID/playlists" > /home/pi/RPi-Jukebox-RFID/settings/Playlists_Folders_Path
 echo "ON" > /home/pi/RPi-Jukebox-RFID/settings/ShowCover
 
-# make sure bash scripts have the right settings
-sudo chown pi:pi /home/pi/RPi-Jukebox-RFID/scripts/*.sh
-sudo chmod +x /home/pi/RPi-Jukebox-RFID/scripts/*.sh
-
 # The new way of making the bash daemon is using the helperscripts 
 # creating the shortcuts and script from a CSV file.
 # see scripts/helperscripts/AssignIDs4Shortcuts.php
@@ -556,6 +567,12 @@ sudo service php7.0-fpm restart
 # create copy of GPIO script
 sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/gpio-buttons.py.sample /home/pi/RPi-Jukebox-RFID/scripts/gpio-buttons.py
 sudo chmod +x /home/pi/RPi-Jukebox-RFID/scripts/gpio-buttons.py
+
+# make sure bash scripts have the right settings
+sudo chown pi:www-data /home/pi/RPi-Jukebox-RFID/scripts/*.sh
+sudo chmod +x /home/pi/RPi-Jukebox-RFID/scripts/*.sh
+sudo chown pi:www-data /home/pi/RPi-Jukebox-RFID/scripts/*.py
+sudo chmod +x /home/pi/RPi-Jukebox-RFID/scripts/*.py
 
 # services to launch after boot using systemd
 # -rw-r--r-- 1 root root  304 Apr 30 10:07 phoniebox-rfid-reader.service
@@ -617,6 +634,7 @@ then
 	sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/locale.gen.sample /etc/locale.gen
 	sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/locale.sample /etc/default/locale
 	sudo locale-gen
+	sudo mkdir /home/pi/.config
 	sudo mkdir /home/pi/.config/mopidy
 	sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/mopidy-etc.sample /etc/mopidy/mopidy.conf
 	sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/mopidy.sample ~/.config/mopidy/mopidy.conf
@@ -652,13 +670,14 @@ then
     sudo sed -i 's/%WIFIcountryCode%/'"$WIFIcountryCode"'/' /etc/dhcpcd.conf
     # Change user:group and access mod
     sudo chown root:netdev /etc/dhcpcd.conf
-    sudo chmod 664 /etc/dhcpcd.conf
-    
+    sudo chmod 664 /etc/dhcpcd.conf 
+       
     # WiFi SSID & Password
-    # -rw-r--r-- 1 root root 137 Jul 16 08:53 /etc/wpa_supplicant/wpa_supplicant.conf
-    sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/wpa_supplicant.conf.stretch-default2.sample /etc/wpa_supplicant/wpa_supplicant.conf
+    # -rw-rw-r-- 1 root netdev 137 Jul 16 08:53 /etc/wpa_supplicant/wpa_supplicant.conf
+    sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/wpa_supplicant.conf.stretch.sample /etc/wpa_supplicant/wpa_supplicant.conf
     sudo sed -i 's/%WIFIssid%/'"$WIFIssid"'/' /etc/wpa_supplicant/wpa_supplicant.conf
     sudo sed -i 's/%WIFIpass%/'"$WIFIpass"'/' /etc/wpa_supplicant/wpa_supplicant.conf
+    sudo sed -i 's/%WIFIcountryCode%/'"$WIFIcountryCode"'/' /etc/wpa_supplicant/wpa_supplicant.conf
     sudo chown root:netdev /etc/wpa_supplicant/wpa_supplicant.conf
     sudo chmod 664 /etc/wpa_supplicant/wpa_supplicant.conf
 fi
@@ -754,6 +773,12 @@ sudo chmod -R 775 /home/pi/RPi-Jukebox-RFID/settings
 sudo chown pi:www-data "$DIRaudioFolders"
 sudo chmod 775 "$DIRaudioFolders"
 
+# make sure bash scripts have the right settings
+sudo chown pi:www-data /home/pi/RPi-Jukebox-RFID/scripts/*.sh
+sudo chmod +x /home/pi/RPi-Jukebox-RFID/scripts/*.sh
+sudo chown pi:www-data /home/pi/RPi-Jukebox-RFID/scripts/*.py
+sudo chmod +x /home/pi/RPi-Jukebox-RFID/scripts/*.py
+
 # / Access settings
 ##################################################### 
 
@@ -776,7 +801,7 @@ case "$response" in
     *)
         cd /home/pi/RPi-Jukebox-RFID/scripts/
         python2 RegisterDevice.py
-        sudo chown pi:pi /home/pi/RPi-Jukebox-RFID/scripts/deviceName.txt
+        sudo chown pi:www-data /home/pi/RPi-Jukebox-RFID/scripts/deviceName.txt
         sudo chmod 644 /home/pi/RPi-Jukebox-RFID/scripts/deviceName.txt
         ;;
 esac

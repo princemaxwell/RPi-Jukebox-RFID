@@ -74,6 +74,7 @@ if [ "$DEBUG" == "true" ]; then echo "VAR PLAYSTATUS: $PLAYSTATUS" >> $PATHDATA/
 if [ "$DEBUG" == "true" ]; then echo "VAR RESUME: $RESUME" >> $PATHDATA/../logs/debug.log; fi
 if [ "$DEBUG" == "true" ]; then echo "VAR SHUFFLE: $SHUFFLE" >> $PATHDATA/../logs/debug.log; fi
 if [ "$DEBUG" == "true" ]; then echo "VAR LOOP: $LOOP" >> $PATHDATA/../logs/debug.log; fi
+if [ "$DEBUG" == "true" ]; then echo "VAR SINGLE: $SINGLE" >> $PATHDATA/../logs/debug.log; fi
 
 if [ "$DEBUG" == "true" ]; then echo "  Now doing what COMMAND wants: $COMMAND" >> $PATHDATA/../logs/debug.log; fi
 
@@ -82,7 +83,7 @@ case "$COMMAND" in
       
 shuffle_check)
     #Check if SHUFFLE is switched on. As this is called for each playlist change, it will overwrite temporary shuffle mode
-	if [ $SHUFFLE == "ON" ]
+	if [ $SHUFFLE == "ON" ];
 	then 
 		if [ "$DEBUG" == "true" ]; then echo "  entering: shuffle_check with value $SHUFFLE" >> $PATHDATA/../logs/debug.log; fi
 		mpc shuffle
